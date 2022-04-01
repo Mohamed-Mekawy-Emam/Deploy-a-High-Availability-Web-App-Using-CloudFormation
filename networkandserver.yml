@@ -1,5 +1,5 @@
 Description: >
-    Mehmet Incefidan / Udagram Project
+    Mohamed Mekawy Emam / Udagram Project
 
 Parameters:
 
@@ -41,6 +41,8 @@ Parameters:
 
 Resources:
 
+#Networking Part
+#Create VPC and 2 Public Subnets and 2 Private Subnets
     VPC:
         Type: AWS::EC2::VPC
         Properties:
@@ -50,28 +52,6 @@ Resources:
               - Key: Name
                 Value: !Ref EnvironmentName
 
-    PrivateSubnet1:
-        Type: AWS::EC2::Subnet
-        Properties:
-          VpcId: !Ref VPC 
-          AvailabilityZone: !Select [ 0, !GetAZs '' ]
-          CidrBlock: !Ref PrivateSubnet1CIDR
-          MapPublicIpOnLaunch: false
-          Tags: 
-              - Key: Name
-                Value: !Sub ${EnvironmentName} Private Subnet (AZ1)
-
-    PrivateSubnet2:
-        Type: AWS::EC2::Subnet
-        Properties:
-          VpcId: !Ref VPC
-          AvailabilityZone: !Select [ 1, !GetAZs '' ]
-          CidrBlock: !Ref PrivateSubnet2CIDR
-          MapPublicIpOnLaunch: false
-          Tags: 
-              - Key: Name
-                Value: !Sub ${EnvironmentName} Private Subnet (AZ2)
-    
     PublicSubnet1:
         Type: AWS::EC2::Subnet
         Properties:
@@ -93,7 +73,30 @@ Resources:
           Tags: 
               - Key: Name
                 Value: !Sub ${EnvironmentName} Public Subnet (AZ2)
+                
+    PrivateSubnet1:
+        Type: AWS::EC2::Subnet
+        Properties:
+          VpcId: !Ref VPC 
+          AvailabilityZone: !Select [ 0, !GetAZs '' ]
+          CidrBlock: !Ref PrivateSubnet1CIDR
+          MapPublicIpOnLaunch: false
+          Tags: 
+              - Key: Name
+                Value: !Sub ${EnvironmentName} Private Subnet (AZ1)
 
+    PrivateSubnet2:
+        Type: AWS::EC2::Subnet
+        Properties:
+          VpcId: !Ref VPC
+          AvailabilityZone: !Select [ 1, !GetAZs '' ]
+          CidrBlock: !Ref PrivateSubnet2CIDR
+          MapPublicIpOnLaunch: false
+          Tags: 
+              - Key: Name
+                Value: !Sub ${EnvironmentName} Private Subnet (AZ2)
+
+#Create IGW
     InternetGateway: 
         Type: AWS::EC2::InternetGateway
 
@@ -103,6 +106,7 @@ Resources:
           VpcId: !Ref VPC 
           InternetGatewayId: !Ref InternetGateway
 
+#Create NAT-GWs and EIPs
     NatGateway1EIP:
         Type: AWS::EC2::EIP
         DependsOn: InternetGatewayAttachment
@@ -126,7 +130,8 @@ Resources:
         Properties:
             AllocationId: !GetAtt NatGateway2EIP.AllocationId
             SubnetId: !Ref PublicSubnet2
-          
+
+#Create Route Table for Public Subnets          
     PublicRouteTable:
         Type: AWS::EC2::RouteTable
         Properties: 
@@ -154,7 +159,8 @@ Resources:
         Properties:
             RouteTableId: !Ref PublicRouteTable
             SubnetId: !Ref PublicSubnet2
-            
+
+#Create Route Tables for Private Subnets             
     PrivateRouteTable1:
         Type: AWS::EC2::RouteTable
         Properties: 
@@ -197,7 +203,8 @@ Resources:
             RouteTableId: !Ref PrivateRouteTable2
             SubnetId: !Ref PrivateSubnet2
     
-    UdacityS3ReadOnlyEC2:
+#Create IAM Role, Role Policy and EC2 profile for EC2 to access S3
+    myAppS3ReadOnlyEC2:
         Type: AWS::IAM::Role
         Properties:
             RoleName: 
@@ -226,18 +233,19 @@ Resources:
                     -   s3:Get*
                     -   s3:List*
                     Resource: 
-                    -   arn:aws:s3:::udacity-demo-1
-                    -   arn:aws:s3:::udacity-demo-1/*
+                    -   arn:aws:s3:::myapp-6291-7066-6893-demo
+                    -   arn:aws:s3:::myapp-6291-7066-6893-demo/*
             Roles:
-            -   Ref: UdacityS3ReadOnlyEC2
+            -   Ref: myAppS3ReadOnlyEC2
 
     ProfileWithRolesForOurApp:
         Type: AWS::IAM::InstanceProfile
         Properties:
             Path: "/"
             Roles:
-            - Ref: UdacityS3ReadOnlyEC2
+            - Ref: myAppS3ReadOnlyEC2
 
+#Create Security Groups for ALB and EC2 instances
     LoadBalancerSecGroup:
             Type: AWS::EC2::SecurityGroup
             Properties:
@@ -274,6 +282,7 @@ Resources:
                 ToPort: 65535
                 CidrIp: 0.0.0.0/0
 
+#Create a launch configuration
     WebAppLaunchConfig: 
         Type: AWS::AutoScaling::LaunchConfiguration
         Properties:
@@ -285,10 +294,10 @@ Resources:
                     apt-get install apache2 -y
                     systemctl start apache2.service
                     cd /var/www/html
-                    aws s3 cp s3://udacity-demo-1/udacity.zip .
-                    unzip -o udacity.zip
-            ImageId: ami-031e556ebe95c007e
-            KeyName: UdacityLondonKP
+                    aws s3 cp s3://myapp-6291-7066-6893-demo/myApp.zip .
+                    unzip -o myApp.zip
+            ImageId: ami-0e472ba40eb589f49
+            KeyName: myAppNVirginiaEC2KP
             IamInstanceProfile: !Ref ProfileWithRolesForOurApp
             SecurityGroups:
             -   Ref: WebServerSecGroup
@@ -296,21 +305,23 @@ Resources:
             BlockDeviceMappings:
             -   DeviceName: "/dev/sdk"
                 Ebs:
-                    VolumeSize: '10' #10GB
+                    VolumeSize: '10' #10GB As Requested
 
+#Create Target Group
     WebAppTargetGroup:
         Type: AWS::ElasticLoadBalancingV2::TargetGroup
         Properties:
-            HealthCheckIntervalSeconds: 10
+            HealthCheckIntervalSeconds: 30
             HealthCheckPath: /
             HealthCheckProtocol: HTTP
-            HealthCheckTimeoutSeconds: 8
+            HealthCheckTimeoutSeconds: 15
             HealthyThresholdCount: 2
             Port: 80
             Protocol: HTTP
             UnhealthyThresholdCount: 5
             VpcId: !Ref VPC
 
+#Create Auto Scaling Group
     WebAppGroup:
         Type: AWS::AutoScaling::AutoScalingGroup
         Properties:
@@ -324,6 +335,7 @@ Resources:
             TargetGroupARNs:
             -   Ref: WebAppTargetGroup
 
+#Create Application Load Balancer, Listener and Listener rule path routing
     WebAppLB:
         Type: AWS::ElasticLoadBalancingV2::LoadBalancer
         Properties:
@@ -355,7 +367,8 @@ Resources:
                 Values: [/]
             ListenerArn: !Ref 'Listener'
             Priority: 1
-            
+
+#Getting outputs from CF            
 Outputs:
 
     VPC:

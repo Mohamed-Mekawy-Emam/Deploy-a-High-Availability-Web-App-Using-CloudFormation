@@ -25,13 +25,17 @@ Just run;
 
 ## Instruction of deploy:
 
-1. [Manually] Creat S3 bucket with name myapp-6291-7066-6893-demo
+1. [AWS CLI] Create S3 bucket with name myapp-6291-7066-6893-demo
+
+aws s3api create-bucket --bucket bucket-name --region us-east-1
+
+aws s3api create-bucket --bucket myapp-6291-7066-6893-demo --region us-east-1
 
 2. [AWS CLI] Upload myApp.zip includes data of {index.html , me.jbg}
 
 aws s3 cp .\myApp.zip s3://myapp-6291-7066-6893-demo/
 
-3. [Manually] Create ketpair "myAppNVirginiaEC2KP.pem" to be used in EC2Web instances in CF template && "jumbbox-key.pem" for Bastion Host
+3. [Manually] Create keypair "myAppNVirginiaEC2KP.pem" to be used in EC2Web instances in CF template && "jumbbox-key.pem" for Bastion Host
 
 4. Run CF template
 
@@ -41,7 +45,7 @@ aws cloudformation update-stack  --stack-name myWebApp --region us-east-1 --temp
 
 aws cloudformation delete-stack  --stack-name myWebApp --region us-east-1  
 
-5. [Manually] Create Bastion Host in a publicsubnet.
+5. [Manually] Create Bastion Host in a public subnet.
 	ServerSpecs:
 		Amazon Linux 2 AMI (HVM), SSD Volume Type
 		t2.micro
@@ -65,6 +69,16 @@ ssh -i "jumbbox-key.pem" ec2-user@<JumbBox PublicIP>  #just to check ssh connect
 scp -i "jumbbox-key.pem" myAppNVirginiaEC2KP.pem ec2-uer@<JumbBox PublicIP>:/home/ec2-user/myAppNVirginiaEC2KP.pem   #copy from host machine to jumbbox server
 
 ssh -i "jumbbox-key.pem" ec2-user@<JumbBox PublicIP>
+
+Just run the below to validate and change permissions on EC2-PrivateIP;
+```sh
    ls
    chmod 400 myAppNVirginiaEC2KP.pem
    ssh -i "myAppNVirginiaEC2KP.pem" ubuntu@<EC2-PrivateIP>
+```
+## Instruction of deleting S3 bucket:
+aws s3 rm s3://bucket-name --recursive
+aws s3 rm s3://myapp-6291-7066-6893-demo --recursive
+
+aws s3api delete-bucket --bucket bucket-name --region us-east-1
+aws s3api delete-bucket --bucket myapp-6291-7066-6893-demo --region us-east-1

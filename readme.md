@@ -46,29 +46,31 @@ aws cloudformation update-stack  --stack-name myWebApp --region us-east-1 --temp
 aws cloudformation delete-stack  --stack-name myWebApp --region us-east-1  
 
 5. [Manually] Create Bastion Host in a public subnet.
-	ServerSpecs:
-		Amazon Linux 2 AMI (HVM), SSD Volume Type
-		t2.micro
-		myAppVPC
-		publicsubnet
-		Auto Assign public IP
-	Storage:
-		8 GB
-	Tags:
-		Name=JumbBox
-	SG:
-		Name=JumbBox-SG
-		Inbound Rules= Allow SSH on port 22, Source=MY IP, Description=Administrator Access
-	Keypair:
-		jumbbox-key.pem
-		
+
+```sh
+	* ServerSpecs:
+	*	Amazon Linux 2 AMI (HVM), SSD Volume Type
+	*	t2.micro
+	*	myAppVPC
+	*publicsubnet
+	*	Auto Assign public IP
+	* Storage:
+	*	8 GB
+	* Tags:
+	*	Name=JumbBox
+	* SG:
+	*	Name=JumbBox-SG
+	*	Inbound Rules= Allow SSH on port 22, Source=MY IP, Description=Administrator Access
+	* Keypair:
+	*	jumbbox-key.pem
+```		
 6. Connect to jumbbox and verify connection to EC2 instances
 
-ssh -i "jumbbox-key.pem" ec2-user@<JumbBox PublicIP>  #just to check ssh connection
+ssh -i "jumbbox-key.pem" ec2-user@JumbBox_PublicIP  #just to check ssh connection
 
-scp -i "jumbbox-key.pem" myAppNVirginiaEC2KP.pem ec2-uer@<JumbBox PublicIP>:/home/ec2-user/myAppNVirginiaEC2KP.pem   #copy from host machine to jumbbox server
+scp -i "jumbbox-key.pem" myAppNVirginiaEC2KP.pem ec2-uer@JumbBox_PublicIP:/home/ec2-user/myAppNVirginiaEC2KP.pem   #copy from host machine to jumbbox server
 
-ssh -i "jumbbox-key.pem" ec2-user@<JumbBox PublicIP>
+ssh -i "jumbbox-key.pem" ec2-user@JumbBox_PublicIP
 
 Just run the below to validate and change permissions on EC2-PrivateIP;
 ```sh
@@ -77,8 +79,12 @@ Just run the below to validate and change permissions on EC2-PrivateIP;
    ssh -i "myAppNVirginiaEC2KP.pem" ubuntu@<EC2-PrivateIP>
 ```
 ## Instruction of deleting S3 bucket:
+```sh
 aws s3 rm s3://bucket-name --recursive
+
 aws s3 rm s3://myapp-6291-7066-6893-demo --recursive
 
 aws s3api delete-bucket --bucket bucket-name --region us-east-1
+
 aws s3api delete-bucket --bucket myapp-6291-7066-6893-demo --region us-east-1
+```
